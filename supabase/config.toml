@@ -1,0 +1,4 @@
+project_id = "fnfplnlraskqrtdtjhyu"
+
+[functions.student-auth]
+verify_jwt = false
