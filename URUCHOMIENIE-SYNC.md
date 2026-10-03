@@ -1,65 +1,36 @@
-# Uruchomienie Ortograficznych wyścigów: konta, synchronizacja i publikacja
+# Uruchomienie Ortograficznych wyścigów: konta e-mail, synchronizacja i publikacja
 
-Aplikacja może działać jako strona internetowa bez kupowania domeny. GitHub Pages może bezpłatnie publikować stronę z publicznego repozytorium na adresie `uzytkownik.github.io/nazwa-repozytorium`. Postępy uczniów zapisuje Supabase, a GitHub przechowuje kod aplikacji.
+Aplikacja może działać jako strona internetowa bez kupowania domeny. GitHub Pages publikuje stronę z repozytorium, a Supabase przechowuje konta, prywatne postępy uczniów i dane rankingów.
 
-## 1. Repozytorium GitHub
+## Repozytorium i strona
 
 Repozytorium projektu: <https://github.com/czasowstrzymywacz-a11y/ortograficzne-wyscigi>.
-Po wysłaniu pierwszej wersji kolejne aktualizacje można wysyłać z folderu projektu:
+Adres strony: <https://czasowstrzymywacz-a11y.github.io/ortograficzne-wyscigi/>.
+Po skonfigurowaniu repozytorium aktualizacje wysyła się z folderu projektu:
 
 ```powershell
 git add -A
 git commit -m "Opis zmian"
-git push -u origin main
+git push
 ```
 
-Pierwsze wysłanie i konfigurację repozytorium przygotowuje opiekun projektu. GitHub może poprosić o zalogowanie w przeglądarce.
+W GitHub wybierz **Settings → Pages → Deploy from a branch**, gałąź `main`, folder `/ (root)`. Nie publikuj kluczy `service_role`/Secret, hasła do bazy ani plików `.env`. Klucz publishable/anon w kodzie przeglądarki jest publiczny; dostęp do danych kontrolują zasady RLS.
 
-## 2. Włącz bezpłatną stronę
+## Supabase — konfiguracja e-mail
 
-1. W repozytorium wybierz **Settings → Pages**.
-2. W **Build and deployment** ustaw **Deploy from a branch**, gałąź `main`, folder `/ (root)` i zapisz.
-3. Po chwili GitHub pokaże adres strony, zwykle `https://czasowstrzymywacz-a11y.github.io/ortograficzne-wyscigi/`.
-4. Zmiany w kodzie publikujesz później poleceniami `git add .`, `git commit -m "Opis zmian"` i `git push`.
+1. W projekcie Supabase powiązanym ze stroną otwórz **Authentication → URL Configuration**.
+2. Ustaw **Site URL** na `https://czasowstrzymywacz-a11y.github.io/ortograficzne-wyscigi/`.
+3. Dodaj ten sam adres do **Redirect URLs** (w razie potrzeby także `https://czasowstrzymywacz-a11y.github.io/ortograficzne-wyscigi/**`).
+4. W **Authentication → Providers → Email** włącz Email. Potwierdzanie adresów może pozostać włączone: uczeń kliknie link w skrzynce, a potem zaloguje się tym samym adresem i hasłem. Dostosuj szablon potwierdzenia, jeśli trzeba.
+5. Otwórz **SQL Editor**, wklej zawartość `supabase-sync.sql` i wybierz **Run**. Skrypt bezpiecznie tworzy tabele, zasady dostępu, profil rankingowy i funkcję rankingu. Można go uruchamiać ponownie po aktualizacjach.
+6. W `index.html` sprawdź `window.ISKIERKA_SYNC_CONFIG`: adres projektu i klucz publishable/anon muszą należeć do tego samego projektu Supabase, w którym uruchomiono SQL.
 
-Strona źródłowa będzie publiczna. W kodzie znajduje się wyłącznie klucz Supabase przeznaczony do użycia w przeglądarce. Nie dodawaj do repozytorium klucza `Secret`/`service_role`, hasła do bazy ani plików `.env`.
+Supabase Auth obsługuje tworzenie kont i logowanie bez wdrażania funkcji `student-auth`. Nie wpisuj do aplikacji żadnych kluczy administracyjnych.
 
-## 3. Przygotuj Supabase
+## Konta i rankingi
 
-1. W projekcie `fnfplnlraskqrtdtjhyu` otwórz **SQL Editor → New query**.
-2. Wklej całą zawartość pliku `supabase-sync.sql` i wybierz **Run**. Tworzy to profile uczniów, prywatne postępy, ograniczenie prób PIN-u oraz funkcję rankingu.
-3. W folderze projektu otwórz PowerShell i zaloguj CLI Supabase:
+Uczeń zakłada konto adresem e-mail i hasłem (co najmniej 8 znaków) oraz wybiera imię lub pseudonim 2–24 znaków. Tylko ten pseudonim jest pokazany w rankingach. Jeśli włączone jest potwierdzenie adresu, najpierw trzeba kliknąć link otrzymany e-mailem, a następnie zalogować się.
 
-```powershell
-npx supabase login
-```
+Po zalogowaniu aplikacja tworzy profil rankingowy i synchronizuje postępy między urządzeniami. Pierwsze logowanie nowego konta przenosi zapis z bieżącej przeglądarki. Rankingi pokazują sześć kategorii równocześnie; odczyt publicznych zestawień obsługuje funkcja SQL `get_leaderboard`, a dane uczniów chronią polityki RLS.
 
-4. Po zalogowaniu połącz projekt i opublikuj funkcję logowania:
-
-```powershell
-npx supabase link --project-ref fnfplnlraskqrtdtjhyu
-npx supabase functions deploy student-auth --project-ref fnfplnlraskqrtdtjhyu
-```
-
-`supabase init` nie jest potrzebne — konfiguracja CLI i plik funkcji są już w tym folderze. Przy pierwszym linkowaniu CLI może poprosić o hasło bazy. Wpisz je bezpośrednio w terminalu Supabase; nie wysyłaj go w czacie ani nie zapisuj w repozytorium.
-
-Funkcja używa klucza administracyjnego wyłącznie po stronie Supabase. Supabase udostępnia funkcjom klucze `SUPABASE_SECRET_KEYS` oraz `SUPABASE_PUBLISHABLE_KEYS`; kod obsługuje ten format. Klucza Secret nie umieszczaj w pliku strony. [Dokumentacja Supabase: sekrety funkcji](https://supabase.com/docs/guides/functions/secrets).
-
-## 4. Jak uczniowie korzystają z kont
-
-1. Uczeń wybiera w aplikacji **Utwórz konto**, wpisuje imię lub pseudonim oraz własny PIN z 4 cyfr.
-2. Nazwa musi być unikalna; jeśli jest zajęta, uczeń wybiera inną. W rankingu widoczna będzie ta nazwa, więc najlepiej wpisać pseudonim, bez nazwiska.
-3. Przy pierwszym logowaniu aplikacja przenosi dotychczasowe wyniki z tej przeglądarki do nowego konta. Na telefonie lub innym urządzeniu uczeń loguje się tą samą nazwą i PIN-em.
-4. Każde konto zapisuje osobne postępy. Rankingi pokazują nazwę i zagregowany wynik, nie listę dyktand.
-
-PIN ma tylko 10 000 możliwych kombinacji, więc funkcja ogranicza próby logowania i rejestracji. PIN nie jest samodzielnym zabezpieczeniem dla wrażliwych danych. Uczeń bez e-maila nie ma automatycznego odzyskiwania zapomnianego PIN-u. Opiekun powinien pomóc zapisać PIN w bezpiecznym miejscu.
-
-## 5. Co jest już przygotowane
-
-- logowanie i samodzielne zakładanie konta imieniem/pseudonimem oraz PIN-em;
-- synchronizacja osiągnięć między urządzeniami;
-- zakładka rankingów z sześcioma kategoriami, podium zwycięzcy i medalami;
-- dodatkowe odznaki za treningi, opanowane słowa, celność i serię;
-- większa baza słów, wyszukiwarka oraz dobieranie kolejnych ćwiczeń z tej bazy.
-
-GitHub Pages jest dostępny bezpłatnie dla publicznych repozytoriów na planie GitHub Free. [Dokumentacja GitHub Pages](https://docs.github.com/en/pages/getting-started-with-github-pages).
+Uczniowie, którzy wcześniej korzystali z kont PIN, muszą utworzyć konto e-mail. Stare postępy pozostają na starym koncie PIN i nie są automatycznie łączone z nowym adresem.

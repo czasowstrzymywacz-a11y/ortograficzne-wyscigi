@@ -30,6 +30,35 @@ revoke all on public.student_progress from public, anon;
 revoke all on public.student_pin_attempt_limits from public, anon, authenticated;
 grant select, insert, update on public.student_progress to authenticated;
 
+create or replace function public.ensure_student_profile(p_display_name text, p_login_key text)
+returns void
+language plpgsql
+security definer
+set search_path = public, pg_temp
+as $$
+begin
+  if auth.uid() is null then
+    raise exception 'Zaloguj się, aby utworzyć profil.';
+  end if;
+  if p_display_name is null or length(btrim(p_display_name)) not between 2 and 24
+     or p_display_name !~ '^[[:alnum:] _-]+$' then
+    raise exception 'Imię lub pseudonim musi mieć 2–24 znaki.';
+  end if;
+  if p_login_key is null or length(p_login_key) > 254 then
+    raise exception 'Nieprawidłowy adres konta.';
+  end if;
+
+  insert into public.student_profiles(user_id, display_name, login_key)
+  values (auth.uid(), btrim(p_display_name), lower(p_login_key))
+  on conflict (user_id) do update set display_name = excluded.display_name;
+exception when unique_violation then
+  raise exception 'Ten profil jest już zarejestrowany.';
+end;
+$$;
+
+revoke all on function public.ensure_student_profile(text, text) from public, anon;
+grant execute on function public.ensure_student_profile(text, text) to authenticated;
+
 drop policy if exists "Students can read their own progress" on public.student_progress;
 create policy "Students can read their own progress"
   on public.student_progress for select
