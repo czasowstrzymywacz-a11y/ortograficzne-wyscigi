@@ -11,22 +11,18 @@ const accountWrites=new Map();
 let manualBoundaries=[],manualStripIndex=0,manualGap=0,trainingStarted=0;
 let previousJoke=-1,authMode='login',passwordRecoveryActive=false;
 const orthoJokes=[
- 'Dlaczego „rz” lubi podróże? Bo często zmienia się w „r”, gdy spotka dobrą rodzinę wyrazów!',
- 'Co mówi „ó”, gdy spotka „o”? „O, to mój krewny!”',
- 'Dlaczego przecinek poszedł na spacer? Żeby zrobić małą przerwę między zdaniami.',
- 'Co robi kropka po pracy? Stawia się na końcu zdania.',
- 'Dlaczego „ch” trzyma się razem? Bo tworzą zgrany dwuznak!',
- 'Jak „u” zaprasza „ó” na herbatę? Pisze zaproszenie… bez błędu!',
- 'Dlaczego dyktando lubi ołówek? Bo z nim każda litera trafia na swoje miejsce.',
- 'Co mówi wielka litera na początku zdania? „Dziś zaczynam pierwsza!”',
- 'Dlaczego słownik jest dobrym kolegą? Zawsze można na niego liczyć.',
- 'Jak nazywa się przecinek, który lubi odpoczywać? Pauza w dobrym miejscu!',
- 'Dlaczego „ż” i „g” rozmawiają? Bo w rodzinie „waga” łatwiej je zapamiętać.',
- 'Co mówi zeszyt po udanym treningu? „Ale dziś mam ładny zapis!”',
- 'Dlaczego litery poszły na boisko? Chciały zagrać w ortograficzną drużynę.',
- 'Co robi wykrzyknik, gdy się cieszy? Staje prosto i woła: „Udało się!”',
- 'Jak zapamiętać „rz” po spółgłosce? D jak „drzewo”, P jak „przygoda” — po tych literach piszemy „rz”.',
- 'Kiedy „ó” jest najbardziej dumne? Gdy ktoś pamięta wymianę: „stół” — „stoły”.'
+ "Na WF-ie pani mówi: „Drużyna, ustawcie się w rzędzie!”. Kacper ustawił też piłkę, żeby nie czuła się samotna.",
+ "Pani pyta: „Kto przyniósł na wycieczkę książkę o kosmosie?”. Kuba: „Ja. Tylko proszę nie zdradzać końca, bo jest bardzo daleko!”.",
+ "Na drugie śniadanie Zosia wyjęła rzodkiewkę. Kolega pyta: „To deser?”. „Nie, kontrola jakości kanapki — sprawdzam, czy się nie obraziła na warzywa”.",
+ "Przewodnik mówi: „Po lewej płynie rzeka”. Bartek patrzy w prawo: „A co płynie po prawej? Tam właśnie idziemy!”.",
+ "Pani pyta, kto chce być bohaterem klasowej gazetki. Zgłasza się Antek: „Mogę, ale czy bohater też musi oddać gazetkę na czas?”.",
+ "W bibliotece Hania szuka książki o wiewiórkach. Bibliotekarka pyta: „Do nauki czy dla przyjemności?”. „Dla przyjemności — wiewiórka z naszej klasy już ją poleca!”.",
+ "Na plastyce pani prosi o narysowanie chmury. Michał dorysowuje jej trampki. „Po co?”. „Bo wygląda, jakby spieszyła się na przerwę!”.",
+ "Kolega pyta: „Dlaczego twój żółw ma plecak?”. „Bo dziś idzie do szkoły. Spakował zeszyt i bardzo dużo czasu na dojście!”.",
+ "Pani pyta: „Kto pamięta, co przyniósł na piknik?”. Lena: „Herbatę, kanapki i przyjaciela”. „A przyjaciel co przyniósł?”. „Dobry apetyt!”.",
+ "Na klasowej wycieczce pani mówi: „Trzymajcie się razem!”. Olek chwyta kolegę za rękaw: „Gotowe. Teraz nawet mój plecak zna całą drużynę!”.",
+ "Uczeń pyta: „Czy mogę wyjść pożyczyć ołówek?”. Pani: „A masz swój?”. „Mam, ale chcę, żeby poznał nowych kolegów!”.",
+ "Na stołówce Franek prosi o dokładkę zupy. Pani pyta: „Tak ci smakowała?”. „Bardzo, tylko talerz zjadł ją szybciej ode mnie!”."
 ];
 function tellOrthoJoke(){let next=Math.floor(Math.random()*orthoJokes.length);if(next===previousJoke)next=(next+1)%orthoJokes.length;previousJoke=next;const out=document.getElementById('ortho-joke-text');if(out){out.textContent=orthoJokes[next];out.classList.remove('joke-pop');void out.offsetWidth;out.classList.add('joke-pop');}}
 function setAuthMode(mode){authMode=mode;passwordRecoveryActive=false;document.getElementById('auth-login-fields').hidden=mode!=='login';document.getElementById('auth-register-fields').hidden=mode!=='register';document.getElementById('auth-recovery-fields').hidden=true;document.getElementById('auth-login-submit').hidden=mode!=='login';document.getElementById('auth-register-submit').hidden=mode!=='register';for(const [id,on] of [['auth-tab-login',mode==='login'],['auth-tab-register',mode==='register']]){const tab=document.getElementById(id);tab.classList.toggle('active',on);tab.setAttribute('aria-selected',String(on));}if(mode==='login'){document.getElementById('student-identity').focus();}setSyncStatus('');}
@@ -142,6 +138,37 @@ renderBadges = () => {
   document.getElementById('badges').innerHTML=badges.filter(([,ok])=>ok).map(([label])=>`<div class="topic-row"><span>${label}</span><small>✓</small></div>`).join('')||'<p class="empty-state">Pierwsze odznaki są już blisko!</p>';
 };
 
+let ocrWorkerPromise=null,ocrScriptPromise=null,ocrRunId=0;
+function loadOcrEngine(){
+ if(window.Tesseract)return Promise.resolve(window.Tesseract);
+ if(!ocrScriptPromise)ocrScriptPromise=new Promise((resolve,reject)=>{const script=document.createElement('script');script.src='https://cdn.jsdelivr.net/npm/tesseract.js@6.0.1/dist/tesseract.min.js';script.onload=()=>window.Tesseract?resolve(window.Tesseract):reject(new Error('Nie udało się uruchomić OCR.'));script.onerror=()=>reject(new Error('Nie udało się pobrać bezpłatnego silnika OCR.'));document.head.append(script);});
+ return ocrScriptPromise.catch(e=>{ocrScriptPromise=null;throw e;});
+}
+async function getOcrWorker(){
+ if(!ocrWorkerPromise)ocrWorkerPromise=(async()=>{const engine=await loadOcrEngine();return engine.createWorker('pol',1,{logger:m=>{if(!m?.status)return;const status=document.getElementById('photo-status');if(status&&m.status!=='recognizing text')status.textContent=m.status==='loading language traineddata'?'Pobieram bezpłatny polski model OCR — zwykle tylko przy pierwszym użyciu…':m.status==='initializing api'?'Przygotowuję rozpoznawanie…':'Przygotowuję bezpłatny OCR…';}});})().catch(e=>{ocrWorkerPromise=null;throw e;});
+ return ocrWorkerPromise;
+}
+function ocrWords(result){return (result?.data?.words||[]).map(w=>({text:String(w.text||'').replace(/[^\p{L}-]/gu,''),confidence:Number(w.confidence)||0})).filter(w=>w.text);}
+function prepareOcrImage(file){return new Promise((resolve,reject)=>{const image=new Image(),url=URL.createObjectURL(file);image.onload=()=>{const scale=Math.min(1,2200/Math.max(image.naturalWidth,image.naturalHeight)),canvas=document.createElement('canvas');canvas.width=Math.max(1,Math.round(image.naturalWidth*scale));canvas.height=Math.max(1,Math.round(image.naturalHeight*scale));canvas.getContext('2d',{willReadFrequently:false}).drawImage(image,0,0,canvas.width,canvas.height);URL.revokeObjectURL(url);canvas.toBlob(blob=>blob?resolve(blob):reject(new Error('Nie udało się przygotować zdjęcia do OCR.')),'image/jpeg',.9);};image.onerror=()=>{URL.revokeObjectURL(url);reject(new Error('Nie udało się otworzyć zdjęcia.'));};image.src=url;});}
+function ocrSuggestions(words){const aligned=OrtoLigaCore.align(manualTokens.map(t=>t.word),words.map(w=>w.text)),out=new Map();for(const op of aligned){if(op.ai<0||op.bj<0)continue;const recognized=words[op.bj],token=manualTokens[op.ai],match=token.variants.find(v=>OrtoLigaCore.lower(v.text)===OrtoLigaCore.lower(recognized.text));if(match&&recognized.confidence>=70)out.set(op.ai,{text:match.text,confidence:recognized.confidence});}return out;}
+function showManualFallback(){const panel=document.getElementById('manual-transcription');panel.hidden=false;panel.scrollIntoView({behavior:'smooth',block:'start'});}
+async function beginPhotoOcr(){
+ if(!photoFile||!currentText)return;
+ const run=++ocrRunId,status=document.getElementById('photo-status'),fallback=document.getElementById('manual-fallback'),retry=document.getElementById('ocr-retry'),panel=document.getElementById('manual-transcription');
+ if(!manualTokens.length)initManualTranscription();else manualTokens.forEach(t=>{t.ocrSuggestion=null;t.ocrConfidence=0;});panel.hidden=true;fallback.hidden=false;retry.hidden=true;document.getElementById('ocr-raw-box').hidden=true;status.textContent='Przygotowuję bezpłatny OCR. Możesz w każdej chwili wybrać zapis z bloczków.';
+ try{
+  const image=await prepareOcrImage(photoFile);if(run!==ocrRunId)return;const worker=await getOcrWorker();if(run!==ocrRunId)return;
+  await worker.setParameters({tessedit_pageseg_mode:'6'});status.textContent='Czytam zdjęcie — pierwszy przebieg…';
+  const first=await worker.recognize(image);if(run!==ocrRunId)return;
+  await worker.setParameters({tessedit_pageseg_mode:'11'});status.textContent='Sprawdzam drugi odczyt, żeby podpowiadać tylko zgodne wyniki…';
+  const second=await worker.recognize(image);if(run!==ocrRunId)return;
+  const a=ocrWords(first),b=ocrWords(second),left=ocrSuggestions(a),right=ocrSuggestions(b);let confirmed=0;
+  for(const [i,x] of left){const y=right.get(i);if(y&&OrtoLigaCore.lower(x.text)===OrtoLigaCore.lower(y.text)&&((x.confidence+y.confidence)/2)>=78){manualTokens[i].ocrSuggestion=x.text;manualTokens[i].ocrConfidence=Math.round((x.confidence+y.confidence)/2);confirmed++;}}
+  document.getElementById('ocr-raw').textContent=first?.data?.text||second?.data?.text||'OCR nie odczytał tekstu.';document.getElementById('ocr-raw-box').hidden=false;retry.hidden=false;panel.hidden=false;renderManualTranscription();
+  status.textContent=confirmed?`Dwa odczyty zgodziły się przy ${confirmed} słowach. To tylko podpowiedzi — kliknij wybrany zapis, aby go zatwierdzić.`:'Odczyt nie dał pewnych podpowiedzi. Zdjęcie może być nieczytelne dla OCR; bloczki są gotowe do ręcznego wyboru.';
+ }catch(error){if(run!==ocrRunId)return;panel.hidden=false;retry.hidden=false;status.textContent=(error?.message||'OCR nie zadziałał.')+' Bloczkowy wybór jest gotowy — nic nie trzeba wpisywać ręcznie.';}
+}
+
 function manualStrips(){return currentText.sentences.flatMap((_,s)=>{const ids=manualTokens.map((t,i)=>t.sentenceIndex===s?i:-1).filter(i=>i>=0),rows=[];for(let i=0;i<ids.length;i+=5)rows.push({s,ids:ids.slice(i,i+5)});return rows;});}
 function manualDisplay(t){if(t.missing)return '';if(t.picked===null)return '';return t.upper?t.picked[0].toLocaleUpperCase('pl')+t.picked.slice(1):t.picked;}
 function gapLocked(at){return manualTokens[at-1]?.finalized||manualTokens[at]?.finalized;}
@@ -159,7 +186,7 @@ hintForManualToken = t => {
 function manualCard(i){
   const t=manualTokens[i],picked=t.picked!==null||t.missing,spellOK=!t.missing&&OrtoLigaCore.lower(t.picked)===OrtoLigaCore.lower(t.word),capOK=!!manualDisplay(t)&&OrtoLigaCore.upper(manualDisplay(t))===OrtoLigaCore.upper(t.word),expected=OrtoLigaCore.tokens(currentText.sentences.join(' ')),punctOK=manualBoundaries[i+1]===expected.gaps[i+1]&&(i!==0||manualBoundaries[0]===expected.gaps[0]),allOK=spellOK&&capOK&&punctOK;
   const state=t.finalized?(allOK?' correct-locked':' wrong-locked'):picked&&!spellOK?' wrong-locked':picked?' word-selected':'';
-  const options=t.variants.map((v,j)=>{const chosen=t.picked===v.text,reveal=picked&&!spellOK&&v.correct;return `<button class="manual-option ${chosen?'selected':''} ${reveal?'revealed-correct':''}" onclick="chooseManualVariant(${i},${j})" ${picked?'disabled':''} aria-pressed="${chosen}"><span class="manual-option-mark">${chosen?(spellOK?'✓':'✕'):reveal?'✓':String.fromCharCode(65+j)}</span><span>${esc(t.upper?v.text[0].toLocaleUpperCase('pl')+v.text.slice(1):v.text)}</span></button>`;}).join('');
+  const options=t.variants.map((v,j)=>{const chosen=t.picked===v.text,reveal=picked&&!spellOK&&v.correct,ocrHint=t.picked===null&&t.ocrSuggestion===v.text;return `<button class="manual-option ${chosen?'selected':''} ${reveal?'revealed-correct':''} ${ocrHint?'ocr-suggested':''}" onclick="chooseManualVariant(${i},${j})" ${picked?'disabled':''} aria-pressed="${chosen}"><span class="manual-option-mark">${chosen?(spellOK?'✓':'✕'):reveal?'✓':String.fromCharCode(65+j)}</span><span>${esc(t.upper?v.text[0].toLocaleUpperCase('pl')+v.text.slice(1):v.text)}${ocrHint?'<small class="ocr-option-label">podpowiedź OCR · kliknij, by wybrać</small>':''}</span></button>`;}).join('');
   const badges=picked?`<div class="manual-status-badges"><span>${spellOK?'✨ Pisownia ✓':'Pisownia ✕'}</span><span>Litera ${t.finalized?(capOK?'✓':'✕'):'· sprawdź'}</span><span>Znaki ${t.finalized?(punctOK?'✓':'✕'):'· sprawdź'}</span></div>`:'';
   let feedback=picked&&!spellOK?hintForManualToken(t):'';
   if(t.finalized&&!capOK&&!t.missing)feedback+='<div class="manual-learning-hint"><b>Aa · Wielka litera</b><span>'+esc(OrtoLigaCore.upper(t.word)?'Początek zdania lub nazwa własna wymaga wielkiej litery.':'Ten wyraz zapisujemy tutaj małą literą.')+'</span><span>Zapamiętaj: duża litera otwiera zdanie i wyróżnia nazwy własne.</span></div>';
