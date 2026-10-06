@@ -34,3 +34,9 @@ Uczeń zakłada konto adresem e-mail i hasłem (co najmniej 8 znaków) oraz wybi
 Po zalogowaniu aplikacja tworzy profil rankingowy i synchronizuje postępy między urządzeniami. Pierwsze logowanie nowego konta przenosi zapis z bieżącej przeglądarki. Rankingi pokazują sześć kategorii równocześnie; odczyt publicznych zestawień obsługuje funkcja SQL `get_leaderboard`, a dane uczniów chronią polityki RLS.
 
 Uczniowie, którzy wcześniej korzystali z kont PIN, muszą utworzyć konto e-mail. Stare postępy pozostają na starym koncie PIN i nie są automatycznie łączone z nowym adresem.
+
+### Lista zawodników i dostępność
+
+Nowa wersja dodaje do Rankingi listę kont z pseudonimem oraz zieloną kropką przy osobach aktywnych. Aby ją włączyć w istniejącym projekcie, w Supabase otwórz **SQL Editor**, uruchom plik `supabase/migrations/202610060001_student_roster.sql`, a następnie odśwież aplikację. Funkcja udostępnia wyłącznie identyfikator konta i pseudonim zalogowanym uczniom; status aktywności jest chwilowy i przekazywany kanałem Realtime, nie jest zapisywany w historii.
+
+W aplikacji użytkownik może też wybrać tryb nocny przyciskiem w górnym pasku. Ustawienie zapamiętuje się na danym urządzeniu.
