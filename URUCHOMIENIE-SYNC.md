@@ -1,4 +1,4 @@
-# Uruchomienie Ortograficznych wyścigów: konta e-mail, synchronizacja i publikacja
+# Uruchomienie OrtoLigi: konta e-mail, synchronizacja i publikacja
 
 Aplikacja może działać jako strona internetowa bez kupowania domeny. GitHub Pages publikuje stronę z repozytorium, a Supabase przechowuje konta, prywatne postępy uczniów i dane rankingów.
 
@@ -21,11 +21,11 @@ W GitHub wybierz **Settings → Pages → Deploy from a branch**, gałąź `main
 1. W projekcie Supabase powiązanym ze stroną otwórz **Authentication → URL Configuration**.
 2. Ustaw **Site URL** na `https://czasowstrzymywacz-a11y.github.io/ortograficzne-wyscigi/`.
 3. Dodaj ten sam adres do **Redirect URLs** (w razie potrzeby także `https://czasowstrzymywacz-a11y.github.io/ortograficzne-wyscigi/**`).
-4. W **Authentication → Providers → Email** włącz Email. Potwierdzanie adresów może pozostać włączone: uczeń kliknie link w skrzynce, a potem zaloguje się tym samym adresem i hasłem. Dostosuj szablon potwierdzenia, jeśli trzeba.
+4. W **Authentication → Providers → Email** włącz Email. Potwierdzanie adresów może pozostać włączone: uczeń kliknie link w skrzynce, a potem zaloguje się tym samym adresem lub swoim pseudonimem i hasłem. Dodaj adres strony do dozwolonych adresów powrotu, aby działały potwierdzanie e-maila i reset hasła.
 5. Otwórz **SQL Editor**, wklej zawartość `supabase-sync.sql` i wybierz **Run**. Skrypt bezpiecznie tworzy tabele, zasady dostępu, profil rankingowy i funkcję rankingu. Można go uruchamiać ponownie po aktualizacjach.
 6. W `index.html` sprawdź `window.ISKIERKA_SYNC_CONFIG`: adres projektu i klucz publishable/anon muszą należeć do tego samego projektu Supabase, w którym uruchomiono SQL.
 
-Supabase Auth obsługuje tworzenie kont i logowanie bez wdrażania funkcji `student-auth`. Nie wpisuj do aplikacji żadnych kluczy administracyjnych.
+Supabase Auth obsługuje tworzenie kont, logowanie e-mailem i reset hasła. Logowanie pseudonimem obsługuje funkcja Edge `student-auth`; jej kod znajduje się w `supabase/functions/student-auth/index.ts`. Po zmianie tego kodu wdrażaj ją do projektu `kubuighspmtztyxdgwxd` poleceniem `supabase functions deploy student-auth --project-ref kubuighspmtztyxdgwxd`. Funkcja wymaga skonfigurowanych sekretów Supabase oraz tabeli profili z `supabase-sync.sql`. Nie wpisuj kluczy administracyjnych do aplikacji ani repozytorium.
 
 ## Konta i rankingi
 

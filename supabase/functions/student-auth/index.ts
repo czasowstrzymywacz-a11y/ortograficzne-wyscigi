@@ -52,41 +52,77 @@ Deno.serve(async (request) => {
     return json({ error: "Brakuje kluczy Supabase w ustawieniach funkcji." }, 500);
   }
 
-  let body: { action?: string; displayName?: string; pin?: string };
+  let body: { action?: string; displayName?: string; pin?: string; identifier?: string; password?: string };
   try {
     body = await request.json();
   } catch {
     return json({ error: "Nieprawidłowe dane." }, 400);
   }
 
-  const identity = normalizeDisplayName(body.displayName);
+  const isEmailLogin = body.action === "email-login";
+  const identifier = typeof body.identifier === "string" ? body.identifier.trim() : "";
+  const identity = isEmailLogin && !identifier.includes("@")
+    ? normalizeDisplayName(identifier)
+    : normalizeDisplayName(body.displayName);
   const pin = typeof body.pin === "string" ? body.pin : "";
-  if (!identity || !/^\d{4}$/.test(pin) || !["login", "register"].includes(body.action || "")) {
-    return json({ error: "Wpisz imię lub pseudonim oraz PIN składający się z 4 cyfr." }, 400);
+  const password = typeof body.password === "string" ? body.password : "";
+  if (isEmailLogin
+    ? (!identifier || identifier.length > 254 || password.length < 8 || (!identifier.includes("@") && !identity))
+    : (!identity || !/^\d{4}$/.test(pin) || !["login", "register"].includes(body.action || ""))) {
+    return json({ error: isEmailLogin ? "Wpisz e-mail lub poprawne imię / pseudonim oraz hasło." : "Wpisz imię lub pseudonim oraz PIN składający się z 4 cyfr." }, 400);
   }
 
   const forwardedIp = request.headers.get("cf-connecting-ip") || request.headers.get("x-forwarded-for")?.split(",")[0]?.trim() || "unknown";
-  const rateKey = await sha256(`${body.action}:${identity.loginKey}:${forwardedIp}`);
+  const rateIdentity = isEmailLogin ? (identity?.loginKey || identifier.toLowerCase()) : identity!.loginKey;
+  const rateKey = await sha256(body.action + ":" + rateIdentity + ":" + forwardedIp);
   const admin = createClient(supabaseUrl, serviceKey, { auth: { persistSession: false, autoRefreshToken: false } });
   const { data: allowed, error: rateError } = await admin.rpc("consume_student_pin_attempt", { p_rate_key: rateKey });
   if (rateError) return json({ error: "Usługa logowania nie jest jeszcze skonfigurowana." }, 503);
   if (!allowed) return json({ error: "Za dużo prób. Odczekaj 15 minut i spróbuj ponownie." }, 429);
 
+  if (isEmailLogin) {
+    let email = identifier.toLowerCase();
+    if (!identifier.includes("@")) {
+      const exactName = identity!.displayName.replace(/[\\%_]/g, "\\$&");
+      const { data: profiles, error: profileError } = await admin
+        .from("student_profiles")
+        .select("user_id, display_name")
+        .ilike("display_name", exactName)
+        .limit(3);
+      if (profileError) return json({ error: "Nie udało się sprawdzić nazwy konta. Spróbuj za chwilę." }, 503);
+      const matches = (profiles || []).filter((profile) => profile.display_name.toLocaleLowerCase("pl") === identity!.displayName.toLocaleLowerCase("pl"));
+      if (matches.length !== 1) {
+        const message = matches.length > 1
+          ? "Ta nazwa pasuje do kilku kont. Zaloguj się adresem e-mail."
+          : "Nieprawidłowy e-mail lub imię, albo hasło.";
+        return json({ error: message }, 401);
+      }
+      const { data: account, error: accountError } = await admin.auth.admin.getUserById(matches[0].user_id);
+      if (accountError || !account.user?.email) return json({ error: "Nieprawidłowy e-mail lub imię, albo hasło." }, 401);
+      email = account.user.email;
+    }
+    const auth = createClient(supabaseUrl, publishableKey, { auth: { persistSession: false, autoRefreshToken: false } });
+    const { data: signedIn, error: signInError } = await auth.auth.signInWithPassword({ email, password });
+    if (signInError || !signedIn.session) return json({ error: "Nieprawidłowy e-mail lub imię, albo hasło." }, 401);
+    await admin.rpc("reset_student_pin_attempt", { p_rate_key: rateKey });
+    return json({ session: { access_token: signedIn.session.access_token, refresh_token: signedIn.session.refresh_token } });
+  }
+
   // Limit account creation per network as well as per chosen name to make bulk signup harder.
-  const signupIpKey = body.action === "register" ? await sha256(`register-ip:${forwardedIp}`) : null;
+  const signupIpKey = body.action === "register" ? await sha256("register-ip:" + forwardedIp) : null;
   if (signupIpKey) {
     const { data: signupAllowed, error: signupRateError } = await admin.rpc("consume_student_pin_attempt", { p_rate_key: signupIpKey });
     if (signupRateError) return json({ error: "Usługa rejestracji nie jest jeszcze skonfigurowana." }, 503);
     if (!signupAllowed) return json({ error: "Z tego połączenia utworzono już kilka kont. Spróbuj ponownie za 15 minut." }, 429);
   }
 
-  const email = `student-${identity.loginKey}@accounts.invalid`;
-  const password = `Iskierka-${pin}`;
+  const email = "student-" + identity.loginKey + "@accounts.invalid";
+  const accountPassword = "Iskierka-" + pin;
 
   if (body.action === "register") {
     const { data: created, error: createError } = await admin.auth.admin.createUser({
       email,
-      password,
+      password: accountPassword,
       email_confirm: true,
       user_metadata: { display_name: identity.displayName },
     });
@@ -105,7 +141,7 @@ Deno.serve(async (request) => {
   }
 
   const auth = createClient(supabaseUrl, publishableKey, { auth: { persistSession: false, autoRefreshToken: false } });
-  const { data: signedIn, error: signInError } = await auth.auth.signInWithPassword({ email, password });
+  const { data: signedIn, error: signInError } = await auth.auth.signInWithPassword({ email, password: accountPassword });
   if (signInError || !signedIn.session) {
     return json({ error: body.action === "register" ? "Konto utworzono, ale nie udało się zalogować. Spróbuj się zalogować." : "Imię lub PIN są nieprawidłowe." }, 401);
   }
