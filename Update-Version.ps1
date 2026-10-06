@@ -22,6 +22,10 @@ foreach ($pattern in @($metaPattern, $badgePattern)) {
 }
 $html = [regex]::Replace($html, $metaPattern, ('<meta name="application-version" content="{0}">' -f $Version))
 $html = [regex]::Replace($html, $badgePattern, ('<span id="app-version" class="app-version" title="Wersja aplikacji">v{0}</span>' -f $Version))
+foreach ($asset in @('ortoliga.css','ortoliga-core.js','ortoliga.js')) {
+    $pattern = [regex]::Escape($asset) + '\?v=\d+\.\d+'
+    $html = [regex]::Replace($html, $pattern, ($asset + '?v=' + $Version))
+}
 $utf8 = [System.Text.UTF8Encoding]::new($false)
 [System.IO.File]::WriteAllText($htmlPath, $html, $utf8)
 [System.IO.File]::WriteAllText($versionPath, ((@{version=$Version} | ConvertTo-Json) + [Environment]::NewLine), $utf8)
