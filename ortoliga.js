@@ -24,7 +24,13 @@ const orthoJokes=[
  "Uczeń pyta: „Czy mogę wyjść pożyczyć ołówek?”. Pani: „A masz swój?”. „Mam, ale chcę, żeby poznał nowych kolegów!”.",
  "Na stołówce Franek prosi o dokładkę zupy. Pani pyta: „Tak ci smakowała?”. „Bardzo, tylko talerz zjadł ją szybciej ode mnie!”."
 ];
-function tellOrthoJoke(){let next=Math.floor(Math.random()*orthoJokes.length);if(next===previousJoke)next=(next+1)%orthoJokes.length;previousJoke=next;const out=document.getElementById('ortho-joke-text');if(out){out.textContent=orthoJokes[next];out.classList.remove('joke-pop');void out.offsetWidth;out.classList.add('joke-pop');}}
+function jokeRewardKey(){return 'ortoliga-joke-reward:'+(syncUser?.id||'guest');}
+function readJokeReward(){try{return JSON.parse(localStorage.getItem(jokeRewardKey()))||{remaining:0,sessionId:'',lastJoke:''};}catch{return {remaining:0,sessionId:'',lastJoke:''};}}
+function writeJokeReward(state){try{localStorage.setItem(jokeRewardKey(),JSON.stringify(state));}catch{}}
+function mobileJokePanel(){let panel=document.getElementById('ortho-joke-mobile');if(!panel){panel=document.createElement('section');panel.id='ortho-joke-mobile';panel.className='ortho-joke ortho-joke-mobile';panel.setAttribute('aria-label','Szkolny żart — nagroda za dyktando');panel.innerHTML='<div class="joke-head"><span>🎁 Nagroda za dyktando</span><button type="button" class="joke-draw" onclick="tellOrthoJoke()">🎲 Losuj żart</button></div><p class="joke-text"></p><small class="joke-lock-note" hidden></small>';document.getElementById('result').appendChild(panel);}return panel;}
+function renderJokeReward(){const state=readJokeReward(),panels=[document.getElementById('ortho-joke'),mobileJokePanel()];for(const panel of panels){if(!panel)continue;panel.hidden=!state.sessionId;const out=panel.querySelector('.joke-text')||panel.querySelector('#ortho-joke-text'),button=panel.querySelector('.joke-draw')||panel.querySelector('button'),note=panel.querySelector('.joke-lock-note');if(out)out.textContent=state.lastJoke||'Ukończone dyktando odblokowało trzy losowania. Odkryj swój szkolny żart!';if(button){button.disabled=!state.remaining;button.textContent=state.remaining?`🎲 Losuj żart · ${state.remaining}`:'🔒 Po następnym dyktandzie';}if(note){note.hidden=!!state.remaining;note.textContent='Kolejne żarty odblokują się po ukończeniu kolejnego dyktanda.';}}}
+function grantJokeReward(sessionId){writeJokeReward({remaining:3,sessionId,lastJoke:''});renderJokeReward();}
+function tellOrthoJoke(){const state=readJokeReward();if(!state.sessionId||!state.remaining)return;let next=Math.floor(Math.random()*orthoJokes.length);previousJoke=orthoJokes.indexOf(state.lastJoke);if(next===previousJoke)next=(next+1)%orthoJokes.length;state.remaining--;state.lastJoke=orthoJokes[next];writeJokeReward(state);renderJokeReward();for(const panel of [document.getElementById('ortho-joke'),document.getElementById('ortho-joke-mobile')]){const out=panel?.querySelector('.joke-text')||panel?.querySelector('#ortho-joke-text');if(out){out.classList.remove('joke-pop');void out.offsetWidth;out.classList.add('joke-pop');}}}
 function setAuthMode(mode){authMode=mode;passwordRecoveryActive=false;document.getElementById('auth-login-fields').hidden=mode!=='login';document.getElementById('auth-register-fields').hidden=mode!=='register';document.getElementById('auth-recovery-fields').hidden=true;document.getElementById('auth-login-submit').hidden=mode!=='login';document.getElementById('auth-register-submit').hidden=mode!=='register';for(const [id,on] of [['auth-tab-login',mode==='login'],['auth-tab-register',mode==='register']]){const tab=document.getElementById(id);tab.classList.toggle('active',on);tab.setAttribute('aria-selected',String(on));}if(mode==='login'){document.getElementById('student-identity').focus();}setSyncStatus('');}
 const localDate = () => {const d=new Date();return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;};
 today = localDate;
@@ -82,7 +88,7 @@ buildText = () => league.generate(data,[],today(),[...TEXTS,...EXPANSION_TEXTS])
 buildBankText = buildText;
 wordsForNext = () => league.diagnosis(data,today()).words.map(x=>x.word);
 const oldStartDictation=startDictation;
-startDictation = id => {if(!id&&data.sessions.length)id=data.dictations.find(d=>d.kind==='dopasowane'&&!d.attempts)?.id;oldStartDictation(id);manualBoundaries=[];manualStripIndex=0;trainingStarted=Date.now();};
+startDictation = id => {if(!id&&data.sessions.length)id=data.dictations.find(d=>d.kind==='dopasowane'&&!d.attempts)?.id;oldStartDictation(id);manualBoundaries=[];manualStripIndex=0;trainingStarted=Date.now();renderJokeReward();};
 generateCategoryDictation = () => {
   const groups=[...document.querySelectorAll('#category-picker input:checked')].map(x=>x.value);
   if(!groups.length||groups.length>3)return;
@@ -97,7 +103,7 @@ function renderAdaptiveHome(){
 }
 renderArchive = () => {
   const entries=[...data.dictations].sort((a,b)=>Number(!b.attempts)-Number(!a.attempts)||(b.createdAt||'').localeCompare(a.createdAt||''));
-  document.getElementById('dictation-archive').innerHTML=entries.map(d=>`<article class="archive-card"><div class="archive-card-top"><span class="archive-kind">${d.kind==='startowe'?'🌱 STARTOWE':d.kind==='wybrane zasady'?'🧩 WYBRANE ZASADY':'🧭 DLA CIEBIE'}</span><span class="archive-attempts">${d.attempts||0} prób</span></div><h3>${esc(d.title)}</h3><p>${esc(d.adaptation||'Spójna historia do spokojnego treningu.')}</p><p>3 zdania · ${d.lastScore==null?'Jeszcze niećwiczone':'Ostatni wynik: '+d.lastScore+'%'}</p><div class="archive-rules">${Object.entries(d.ruleScores||{}).map(([g,v])=>`<span>${ruleIcon(g)} ${esc(g)} ${v.score}%</span>`).join('')}</div><button class="secondary" onclick="startDictation('${esc(d.id)}')">${d.attempts?'Ćwicz ponownie':'Rozpocznij'} →</button></article>`).join('');
+  document.getElementById('dictation-archive').innerHTML=entries.map(d=>`<article class="archive-card"><div class="archive-card-top"><span class="archive-kind">${d.kind==='startowe'?'🌱 DYKTANDO STARTOWE':d.kind==='wybrane zasady'?'🧩 WYBRANE ZASADY':'🧭 DLA CIEBIE'}</span><span class="archive-attempts">${d.attempts||0} prób</span></div><h3>${esc(d.title)}</h3><p>${esc(d.adaptation||'Spójna historia do spokojnego treningu.')}</p><p>3 zdania · ${d.lastScore==null?'Jeszcze niećwiczone':'Ostatni wynik: '+d.lastScore+'%'}</p><div class="archive-rules">${Object.entries(d.ruleScores||{}).map(([g,v])=>`<span>${ruleIcon(g)} ${esc(g)} ${v.score}%</span>`).join('')}</div><button class="secondary" onclick="startDictation('${esc(d.id)}')">${d.attempts?'Ćwicz ponownie':'Rozpocznij'} →</button></article>`).join('');
 };
 renderDictationRules = () => {
   const el=document.getElementById('dictation-rules');if(!currentText||!el)return;
@@ -131,7 +137,7 @@ renderSidebarRankings = () => {
 };
 renderTopics = () => {document.getElementById('topic-progress').innerHTML=GROUP_ORDER.map(g=>{const row=data.ruleStats[g];return `<div class="topic-row"><span>${ruleIcon(g)} ${esc(g)}</span><div class="progress-track"><div class="progress-fill" style="width:${rulePct(row)}%"></div></div><small>${row?.total?rulePct(row)+'%':'—'}</small></div>`;}).join('');};
 const oldRenderAll=renderAll;
-renderAll = () => {oldRenderAll();document.getElementById('metric-words').textContent=Object.values(data.words).filter(league.mastered).length;document.getElementById('metric-mins').textContent=Math.round(data.sessions.reduce((n,s)=>n+(s.durationSeconds||0),0)/60)+' min';renderAdaptiveHome();};
+renderAll = () => {oldRenderAll();document.getElementById('metric-words').textContent=Object.values(data.words).filter(league.mastered).length;document.getElementById('metric-mins').textContent=Math.round(data.sessions.reduce((n,s)=>n+(s.durationSeconds||0),0)/60)+' min';renderAdaptiveHome();renderJokeReward();};
 renderBadges = () => {
   const n=data.sessions.length,mastered=Object.values(data.words).filter(league.mastered).length,best=Math.max(0,...data.sessions.map(x=>x.score||0));
   const badges=[['🌱 Pierwszy krok',n>=1],['🔥 Trzy treningi',n>=3],['🏅 Dziesięć dyktand',n>=10],['💎 Skarbiec słów',mastered>=5],['🎯 Celność 90%',best>=90],['⚡ Seria tygodnia',data.streak>=7]];
@@ -250,7 +256,7 @@ checkAnswer = (options={}) => {
   const cards=[...new Set(focus)].map(w=>hintForManualToken({word:w})).join('');
   const rules=Object.entries(ruleScores).map(([g,r])=>`<div class="attempt-rule"><span>${ruleIcon(g)} ${esc(g)}</span><b>${r.score}%</b><small>${r.correct}/${r.total} poprawnych prób</small><i><em style="width:${r.score}%"></em></i></div>`).join('');
   document.getElementById('result').innerHTML=`<div class="result-card"><h3>${result.score>=90?'Wspaniale! 🌟':result.score>=65?'Dobra praca! 🌱':'Każdy trening pomaga! 💛'} Wynik: ${result.score}%</h3><p>Pisownia: ${result.correct}/${result.expected.words.length} słów. Osobno oceniamy wielkie litery oraz znaki w konkretnych przerwach.</p><div class="dictation-result-rules">${rules}</div><div class="diff">${diff}</div>${punctuationFeedback(result)}${cards}<p class="next-dictation-note">🧭 Twoje dwa następne treningi są już w „Moich dyktandach”. Uwzględniają dzisiejsze trudności oraz zaplanowane powtórki.</p><button class="primary" onclick="startDictation()">Następny trening →</button></div>`;
-  renderDictationRules();document.getElementById('result').scrollIntoView({behavior:'smooth',block:'start'});
+  grantJokeReward(attemptId);renderDictationRules();document.getElementById('result').scrollIntoView({behavior:'smooth',block:'start'});
 };
 
 function mergeAccountProgress(remote,local,baseline) {
