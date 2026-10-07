@@ -14,14 +14,14 @@ if (-not $Version) {
 }
 $html = [System.IO.File]::ReadAllText($htmlPath)
 $metaPattern = '<meta name="application-version" content="[^"]+">'
-$badgePattern = '<span id="app-version" class="app-version" title="Wersja aplikacji">v[^<]+</span>'
+$badgePattern = '<button type="button" id="app-version" class="app-version" title="Pokaż historię wersji" onclick="openVersionHistory\(\)">v[^<]+</button>'
 foreach ($pattern in @($metaPattern, $badgePattern)) {
     if ([regex]::Matches($html, $pattern).Count -ne 1) {
         throw 'Nie znaleziono pojedynczego oznaczenia wersji w index.html.'
     }
 }
 $html = [regex]::Replace($html, $metaPattern, ('<meta name="application-version" content="{0}">' -f $Version))
-$html = [regex]::Replace($html, $badgePattern, ('<span id="app-version" class="app-version" title="Wersja aplikacji">v{0}</span>' -f $Version))
+$html = [regex]::Replace($html, $badgePattern, ('<button type="button" id="app-version" class="app-version" title="Pokaż historię wersji" onclick="openVersionHistory()">v{0}</button>' -f $Version))
 foreach ($asset in @('ortoliga.css','ortoliga-core.js','ortoliga.js')) {
     $pattern = [regex]::Escape($asset) + '\?v=\d+\.\d+'
     $html = [regex]::Replace($html, $pattern, ($asset + '?v=' + $Version))

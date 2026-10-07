@@ -8,21 +8,19 @@ const dirtyKey = owner => `ortoliga-pending:${owner}`;
 const baseKey = owner => `ortoliga-cloud-base:${owner}`;
 let accountLoadSequence=0, loadingAccount=null, loadingAccountPromise=null;
 const accountWrites=new Map();
-let manualBoundaries=[],manualStripIndex=0,manualGap=0,trainingStarted=0;
+let manualBoundaries=[],manualStripIndex=0,trainingStarted=0;
 let previousJoke=-1,authMode='login',passwordRecoveryActive=false;
 const orthoJokes=[
- "Na WF-ie pani mówi: „Drużyna, ustawcie się w rzędzie!”. Kacper ustawił też piłkę, żeby nie czuła się samotna.",
- "Pani pyta: „Kto przyniósł na wycieczkę książkę o kosmosie?”. Kuba: „Ja. Tylko proszę nie zdradzać końca, bo jest bardzo daleko!”.",
- "Na drugie śniadanie Zosia wyjęła rzodkiewkę. Kolega pyta: „To deser?”. „Nie, kontrola jakości kanapki — sprawdzam, czy się nie obraziła na warzywa”.",
- "Przewodnik mówi: „Po lewej płynie rzeka”. Bartek patrzy w prawo: „A co płynie po prawej? Tam właśnie idziemy!”.",
- "Pani pyta, kto chce być bohaterem klasowej gazetki. Zgłasza się Antek: „Mogę, ale czy bohater też musi oddać gazetkę na czas?”.",
- "W bibliotece Hania szuka książki o wiewiórkach. Bibliotekarka pyta: „Do nauki czy dla przyjemności?”. „Dla przyjemności — wiewiórka z naszej klasy już ją poleca!”.",
- "Na plastyce pani prosi o narysowanie chmury. Michał dorysowuje jej trampki. „Po co?”. „Bo wygląda, jakby spieszyła się na przerwę!”.",
- "Kolega pyta: „Dlaczego twój żółw ma plecak?”. „Bo dziś idzie do szkoły. Spakował zeszyt i bardzo dużo czasu na dojście!”.",
- "Pani pyta: „Kto pamięta, co przyniósł na piknik?”. Lena: „Herbatę, kanapki i przyjaciela”. „A przyjaciel co przyniósł?”. „Dobry apetyt!”.",
- "Na klasowej wycieczce pani mówi: „Trzymajcie się razem!”. Olek chwyta kolegę za rękaw: „Gotowe. Teraz nawet mój plecak zna całą drużynę!”.",
- "Uczeń pyta: „Czy mogę wyjść pożyczyć ołówek?”. Pani: „A masz swój?”. „Mam, ale chcę, żeby poznał nowych kolegów!”.",
- "Na stołówce Franek prosi o dokładkę zupy. Pani pyta: „Tak ci smakowała?”. „Bardzo, tylko talerz zjadł ją szybciej ode mnie!”."
+ "Pani pyta: „Dlaczego zadanie domowe jest puste?”. Kuba: „Bo chciałem zostawić miejsce na pani uwagi!”.",
+ "Na matematyce pani pyta o wynik. Zosia mówi: „Wyszło mi siedem”. „A sprawdziłaś?”. „Tak, dwa razy — nadal siedem!”.",
+ "Pani prosi o ciszę. Bartek podnosi rękę: „Czy ciszę też zapisujemy w zeszycie?”.",
+ "Na plastyce uczeń oddaje pustą kartkę. „Co to jest?” — pyta nauczycielka. „Bardzo oszczędny krajobraz!”.",
+ "Kolega pyta: „Masz plan na sprawdzian?”. „Tak, najpierw przeczytam pytania, a potem plan może się zmienić”.",
+ "Pani pyta, kto pamięta temat lekcji. Lena: „Ja pamiętam, że był ważny. Szczegóły dopiszę po przerwie!”.",
+ "W bibliotece Franek szuka książki, która sama się czyta. Bibliotekarka: „A ty co będziesz robił?”. „Kibicował!”.",
+ "Nauczyciel pyta: „Dlaczego spóźniłeś się na lekcję?”. Uczeń: „Bo dzwonek zadzwonił, zanim zdążyłem przyjść!”.",
+ "Na przyrodzie pani pyta o obieg wody. Michał: „Woda wraca do chmur, bo chyba też nie lubi siedzieć w jednym miejscu!”.",
+ "Koleżanka pyta: „Po co zabrałeś linijkę na przerwę?”. „Żeby zmierzyć, czy kolejka po obiad jest naprawdę taka długa!”"
 ];
 function jokeRewardKey(){return 'ortoliga-joke-reward:'+(syncUser?.id||'guest');}
 function readJokeReward(){try{return JSON.parse(localStorage.getItem(jokeRewardKey()))||{remaining:0,sessionId:'',lastJoke:''};}catch{return {remaining:0,sessionId:'',lastJoke:''};}}
@@ -45,7 +43,7 @@ restoreExtraWords = () => {BANK.splice(0,BANK.length,...leagueBaseBank);};
 clearExtraWords = () => {BANK.splice(0,BANK.length,...leagueBaseBank);};
 restoreExtraWords();
 GROUP_HELP['Ó wymienne']='Poszukaj rodziny wyrazu: ó może wymienić się na o, e lub a, np. stół–stoły, wiózł–wieźć, wrócić–wracać.';
-GROUP_HELP['Przecinki i interpunkcja']='Przecinek oddziela m.in. zdania składowe i wyliczenia. Kropka kończy zdanie. Sprawdzamy znak oraz jego dokładne miejsce.';
+GROUP_HELP['Przecinki i interpunkcja']='Ćwiczymy tylko dwa znaki: przecinek i kropkę. Zaznacz je przy słowie, po którym zapisano znak.';
 
 function persistAccount(owner,dirty=false) {
   data.schemaVersion=2;localStorage.setItem(localKey(owner),JSON.stringify(data));
@@ -76,10 +74,10 @@ ensureSeedDictations = () => {
   for(let i=0;i<TEXTS.length;i++){
     const id='base-'+(i+1),saved=data.dictations.find(d=>d.id===id),story=league.enrich(TEXTS[i]);
     if(!saved)data.dictations.push({...story,id,kind:'startowe',attempts:0,lastScore:null,contentVersion:4,createdAt:today()});
-    else {if(!saved.attempts)Object.assign(saved,story);else saved.words=league.enrich(saved).words;saved.contentVersion=4;}
+    else {if(!saved.attempts)Object.assign(saved,story,{attempts:0,lastScore:saved.lastScore??null,ruleScores:saved.ruleScores||{}});else saved.words=league.enrich(saved).words;saved.contentVersion=5;}
   }
   for(const item of data.dictations){
-    if(!Array.isArray(item.sentences)||item.sentences.length!==3||OrtoLigaCore.forbidden.test(item.sentences.join(' '))){const safe=league.enrich(TEXTS[0]);Object.assign(item,safe,{lastScore:null,ruleScores:{}});}
+    if(!Array.isArray(item.sentences)||item.sentences.length!==3||(!item.attempts&&OrtoLigaCore.tokens((item.sentences||[]).join(' ')).words.length>20)||OrtoLigaCore.forbidden.test(item.sentences.join(' '))){const safe=league.enrich(TEXTS[0]);Object.assign(item,safe,{lastScore:null,ruleScores:{}});}
     else item.words=league.enrich(item).words;
   }
   ensureAdaptiveQueue(true);persistAccount(syncUser?.id);
@@ -178,7 +176,7 @@ function manualDisplay(t){if(t.missing)return '';if(t.picked===null)return '';re
 initManualTranscription = () => {
   if(!currentText)return;
   manualTokens=currentText.sentences.flatMap((s,sentenceIndex)=>wordTokens(s).map(word=>({word,variants:spellingOptions(word),picked:null,missing:false,upper:false,punctuation:'',sentenceIndex,finalized:false})));
-  manualBoundaries=Array(manualTokens.length+1).fill('');manualStripIndex=0;manualGap=0;manualActive=-1;
+  manualBoundaries=Array(manualTokens.length+1).fill('');manualStripIndex=0;manualActive=-1;
   document.getElementById('camera-panel').classList.add('active','transcribing');document.getElementById('manual-transcription').hidden=false;document.getElementById('manual-entry-wrap').hidden=true;
   document.getElementById('manual-warning').textContent='';renderManualTranscription();
 };
@@ -190,31 +188,29 @@ function manualCard(i){
   const t=manualTokens[i],picked=t.picked!==null||t.missing,spellOK=!t.missing&&OrtoLigaCore.lower(t.picked)===OrtoLigaCore.lower(t.word),capOK=!!manualDisplay(t)&&OrtoLigaCore.upper(manualDisplay(t))===OrtoLigaCore.upper(t.word),expected=OrtoLigaCore.tokens(currentText.sentences.join(' ')),punctOK=manualBoundaries[i+1]===expected.gaps[i+1]&&(i!==0||manualBoundaries[0]===expected.gaps[0]),allOK=spellOK&&capOK&&punctOK;
   const state=t.finalized?(allOK?' correct-locked':' wrong-locked'):picked?(spellOK?(t.celebrate?' correct-celebrating':' correct-locked'):' wrong-locked'):'';
   const options=t.variants.map((v,j)=>{const chosen=t.picked===v.text,reveal=picked&&!spellOK&&v.correct;return `<button class="manual-option ${chosen?'selected':''} ${reveal?'revealed-correct':''}" onclick="event.stopPropagation();chooseManualVariant(${i},${j})" ${picked?'disabled':''} aria-pressed="${chosen}"><span class="manual-option-mark">${chosen?(spellOK?'✓':'✕'):reveal?'✓':String.fromCharCode(65+j)}</span><span>${esc(t.upper?v.text[0].toLocaleUpperCase('pl')+v.text.slice(1):v.text)}</span></button>`;}).join('');
-  return `<article id="manual-word-${i}" class="manual-word-row tone-${i%5}${manualActive===i?' active':''}${state}" onclick="activateManualWord(${i})"><div class="manual-word-top"><span class="manual-word-number">${i+1}</span><span class="manual-word-title">SŁOWO ${i+1}</span><div class="manual-card-tools"><button class="manual-capital ${t.upper?'active':''}" onclick="event.stopPropagation();toggleManualCapital(${i})" ${t.missing||t.finalized?'disabled':''} aria-label="Przełącz wielką literę" aria-pressed="${t.upper}">${t.upper?'a':'A↥'}</button><button class="manual-listen-word" onclick="event.stopPropagation();speakManualWord(${i})" aria-label="Odsłuchaj słowo">🔊</button><button class="manual-missing" onclick="event.stopPropagation();markManualMissing(${i})" ${picked?'disabled':''}>${t.missing?'Brak ✓':'Brak'}</button></div><span class="manual-word-picked">${esc(t.missing?'Pominięto':manualDisplay(t)||'Wybierz zapis z kartki')}${t.punctuation?esc(t.punctuation):''}</span></div><div class="manual-options">${options}</div></article>`;
+  const punctuation=['.',','].map(mark=>`<button type="button" class="manual-punctuation-toggle ${manualBoundaries[i+1]?.includes(mark)?'active':''}" onclick="event.stopPropagation();toggleManualPunctuation('${mark}',${i})" aria-label="${mark==='.'?'Dodaj lub usuń kropkę po tym słowie':'Dodaj lub usuń przecinek po tym słowie'}" aria-pressed="${manualBoundaries[i+1]?.includes(mark)||false}" ${t.missing||t.finalized?'disabled':''}>${mark}</button>`).join('');
+  return `<article id="manual-word-${i}" class="manual-word-row tone-${i%5}${manualActive===i?' active':''}${state}" onclick="activateManualWord(${i})"><div class="manual-word-top"><span class="manual-word-number">${i+1}</span><span class="manual-word-title">SŁOWO ${i+1}</span><div class="manual-card-tools"><button class="manual-capital ${t.upper?'active':''}" onclick="event.stopPropagation();toggleManualCapital(${i})" ${t.missing||t.finalized?'disabled':''} aria-label="Przełącz wielką literę" aria-pressed="${t.upper}">${t.upper?'a':'A↥'}</button><span class="manual-punctuation-tools">${punctuation}</span><button class="manual-listen-word" onclick="event.stopPropagation();speakManualWord(${i})" aria-label="Odsłuchaj słowo">🔊</button><button class="manual-missing" onclick="event.stopPropagation();markManualMissing(${i})" ${picked?'disabled':''}>${t.missing?'Brak ✓':'Brak'}</button></div><span class="manual-word-picked">${esc(t.missing?'Pominięto':manualDisplay(t)||'Wybierz zapis z kartki')}${t.punctuation?esc(t.punctuation):''}</span></div><div class="manual-options">${options}</div></article>`;
 }
 renderManualTranscription = () => {
   const root=document.getElementById('manual-sentences');if(!root||!currentText)return;
-  const strips=manualStrips(),row=strips[Math.min(manualStripIndex,strips.length-1)],marks=[',','.','?','!',':',';'];
-  const punctuation=`<div class="manual-punctuation-panel"><b>✍️ Interpunkcja</b><div class="manual-punctuation-buttons">${marks.map(mark=>`<button onclick="toggleManualPunctuation('${mark}')" ${manualGap<=0||manualGapLocked(manualGap)?'disabled':''} aria-label="Dodaj ${mark}">${mark}</button>`).join('')}</div><small>${manualGap>0&&!manualGapLocked(manualGap)?'Miejsce wybrane. Wskaż znak z kartki.':'Kliknij kropkę w podglądzie, a potem wybierz znak.'}</small></div>`;
+  const strips=manualStrips(),row=strips[Math.min(manualStripIndex,strips.length-1)];
   const completed=strips.slice(0,manualStripIndex).map((r,n)=>`<details class="completed-strip"><summary>✓ Pasek ${n+1} · ${r.ids.map(i=>esc(manualDisplay(manualTokens[i])||'[brak]')).join(' ')}</summary><div class="manual-strip">${r.ids.map(manualCard).join('')}</div></details>`).join('');
   const allFinal=manualTokens.every(t=>t.finalized);
-  root.innerHTML=`<div class="manual-photo-mini"><img src="${esc(photoUrl||'')}" alt="Twoja kartka — podgląd" onclick="this.classList.toggle('zoomed')"><span>Kliknij zdjęcie, aby je powiększyć. Wybieraj dokładnie zapis z kartki.</span></div>${punctuation}${completed}<section class="manual-sentence"><div class="manual-sentence-label">ZDANIE ${row.s+1} · PASEK ${manualStripIndex+1} / ${strips.length}</div><div class="manual-strip">${row.ids.map(manualCard).join('')}</div><button class="primary strip-next" onclick="completeManualStrip()" ${allFinal?'disabled':''}>${manualStripIndex===strips.length-1?'Zatwierdź i sprawdź dyktando':'Zatwierdź pasek i przejdź dalej →'}</button><p class="hint">Wybór zapisu słowa jest ostateczny. Przed zatwierdzeniem paska sprawdź wielkie litery i znaki.</p></section>`;
+  root.innerHTML=`<div class="manual-photo-mini"><img src="${esc(photoUrl||'')}" alt="Twoja kartka — podgląd" onclick="this.classList.toggle('zoomed')"><span>Kliknij zdjęcie, aby je powiększyć. Wybieraj dokładnie zapis z kartki.</span></div>${completed}<section class="manual-sentence"><div class="manual-sentence-label">ZDANIE ${row.s+1} · PASEK ${manualStripIndex+1} / ${strips.length}</div><div class="manual-strip">${row.ids.map(manualCard).join('')}</div><button class="primary strip-next" onclick="completeManualStrip()" ${allFinal?'disabled':''}>${manualStripIndex===strips.length-1?'Zatwierdź i sprawdź dyktando':'Zatwierdź pasek i przejdź dalej →'}</button><p class="hint">Wybór zapisu słowa jest ostateczny. Przy każdym słowie zaznacz wielką literę, kropkę lub przecinek zgodnie z kartką.</p></section>`;
   document.getElementById('manual-progress').textContent=manualTokens.filter(t=>t.finalized).length+' / '+manualTokens.length+' zatwierdzonych słów';
-  const built=[];for(let i=0;i<manualTokens.length;i++){const t=manualTokens[i],word=t.missing?'<span class="missing-word">brak słowa</span>':t.picked===null?'<span class="unpicked-word">···</span>':esc(manualDisplay(t));built.push(word+esc(manualBoundaries[i+1]||''));built.push(`<button type="button" class="manual-gap-target ${manualGap===i+1?'selected':''}" onclick="selectManualGap(${i+1})" aria-label="Zaznacz miejsce interpunkcji">·</button>`);}
+  const built=[];for(let i=0;i<manualTokens.length;i++){const t=manualTokens[i],word=t.missing?'<span class="missing-word">brak słowa</span>':t.picked===null?'<span class="unpicked-word">···</span>':esc(manualDisplay(t));built.push(word+esc(manualBoundaries[i+1]||''));}
   document.getElementById('manual-built').innerHTML='<b>Twój zapis:</b> '+built.join(' ');
 };
 chooseManualVariant = (i,j) => {const t=manualTokens[i],v=t?.variants[j];if(!t||!v||t.picked!==null||t.missing)return;t.picked=v.text;t.isCorrect=v.correct;t.celebrate=!!v.correct;manualActive=i;document.getElementById('manual-warning').textContent='';renderManualTranscription();if(v.correct)setTimeout(()=>{t.celebrate=false;const card=document.getElementById(`manual-word-${i}`);if(card){card.classList.remove('correct-celebrating');card.classList.add('correct-locked');}},1250);};
 markManualMissing = i => {const t=manualTokens[i];if(!t||t.picked!==null||t.missing)return;t.missing=true;t.upper=false;manualActive=i;renderManualTranscription();};
 toggleManualCapital = i => {const t=manualTokens[i];if(!t||t.missing||t.finalized)return;t.upper=!t.upper;renderManualTranscription();};
-function manualGapLocked(at){return !at||manualTokens[at-1]?.finalized||manualTokens[at]?.finalized;}
-function selectManualGap(at){if(manualGapLocked(at))return;manualGap=at;renderManualTranscription();}
-toggleManualPunctuation = mark => {if(manualGapLocked(manualGap))return;manualBoundaries[manualGap]=manualBoundaries[manualGap]?.endsWith(mark)?manualBoundaries[manualGap].slice(0,-mark.length):`${manualBoundaries[manualGap]||''}${mark}`;if(manualTokens[manualGap-1])manualTokens[manualGap-1].punctuation=manualBoundaries[manualGap];renderManualTranscription();};
-resetManualChoices = () => {manualTokens.forEach(t=>{t.picked=null;t.missing=false;t.upper=false;t.punctuation='';t.finalized=false;t.celebrate=false;});manualBoundaries=Array(manualTokens.length+1).fill('');manualStripIndex=0;manualActive=-1;manualGap=0;document.getElementById('manual-warning').textContent='';renderManualTranscription();};
+toggleManualPunctuation = (mark,i) => {const t=manualTokens[i];if(!t||t.missing||t.finalized||!['.',','].includes(mark))return;const gap=i+1,current=manualBoundaries[gap]||'';manualBoundaries[gap]=current.includes(mark)?current.replace(mark,''):`${current}${mark}`;manualBoundaries[gap]=[',','.'].filter(x=>manualBoundaries[gap].includes(x)).join('');t.punctuation=manualBoundaries[gap];renderManualTranscription();};
+resetManualChoices = () => {manualTokens.forEach(t=>{t.picked=null;t.missing=false;t.upper=false;t.punctuation='';t.finalized=false;t.celebrate=false;});manualBoundaries=Array(manualTokens.length+1).fill('');manualStripIndex=0;manualActive=-1;document.getElementById('manual-warning').textContent='';renderManualTranscription();};
 function completeManualStrip(){
   const rows=manualStrips(),row=rows[manualStripIndex];if(!row)return;
   if(row.ids.some(i=>manualTokens[i].picked===null&&!manualTokens[i].missing)){document.getElementById('manual-warning').textContent='Wybierz zapis lub „Brak” w każdym bloku tego paska.';return;}
   for(const i of row.ids)manualTokens[i].finalized=true;
-  if(manualStripIndex<rows.length-1){manualStripIndex++;manualActive=-1;manualGap=0;renderManualTranscription();document.querySelector('#manual-sentences .manual-sentence')?.scrollIntoView({behavior:'smooth',block:'start'});}
+  if(manualStripIndex<rows.length-1){manualStripIndex++;manualActive=-1;renderManualTranscription();document.querySelector('#manual-sentences .manual-sentence')?.scrollIntoView({behavior:'smooth',block:'start'});}
   else{renderManualTranscription();checkManualAnswer();}
 }
 manualAnswer = () => {
@@ -360,3 +356,12 @@ saveRecoveredPassword=async()=>{const password=document.getElementById('student-
 initSync=async()=>{if(!cloudConfigured()){updateSyncUi();return;}const app=document.querySelector('.app');app.classList.add('sync-loading');try{if(!window.supabase?.createClient)throw new Error('Brak połączenia z obsługą kont.');syncClient=window.supabase.createClient(window.ISKIERKA_SYNC_CONFIG.url,window.ISKIERKA_SYNC_CONFIG.anonKey);syncClient.auth.onAuthStateChange((event,session)=>{if(event==='PASSWORD_RECOVERY'){passwordRecoveryActive=true;document.getElementById('auth-login-fields').hidden=true;document.getElementById('auth-register-fields').hidden=true;document.getElementById('auth-recovery-fields').hidden=false;document.querySelector('.auth-tabs').hidden=true;document.getElementById('auth-login-submit').hidden=true;document.getElementById('auth-register-submit').hidden=true;document.getElementById('sync-dialog').showModal();setSyncStatus('Ustaw nowe hasło do swojego konta.','success');}if(event!=='INITIAL_SESSION')setTimeout(()=>void setSyncUser(session?.user||null),0);});const {data:sessionData,error}=await withTimeout(syncClient.auth.getSession(),15000);if(error)throw error;if(sessionData?.session)await setSyncUser(sessionData.session.user);else updateSyncUi();}catch(error){setSyncStatus(error.message||'Konta chwilowo niedostępne.','error');}finally{app.classList.remove('sync-loading');}};
 const previousSetSyncUser=setSyncUser;setSyncUser=user=>{if(user&&!passwordRecoveryActive)document.querySelector('.auth-tabs').hidden=false;return previousSetSyncUser(user);};
 const previousSignOut=syncSignOut;syncSignOut=async()=>{await previousSignOut();if(!syncUser){document.querySelector('.auth-tabs').hidden=false;setAuthMode('login');}};
+
+let classChatChannel=null;
+function chatMessageNode(message){const row=document.createElement('article');row.className='chat-message';const who=document.createElement('b');who.textContent=message.sender_name||'Uczeń';const body=document.createElement('span');body.textContent=message.body||'';const when=document.createElement('time');when.dateTime=message.created_at||'';when.textContent=message.created_at?new Date(message.created_at).toLocaleTimeString('pl-PL',{hour:'2-digit',minute:'2-digit'}):'';row.append(who,body,when);return row;}
+function appendClassChatMessage(message){const box=document.getElementById('chat-messages');if(!box||!message)return;if(box.querySelector(`[data-chat-id="${message.id}"]`))return;const node=chatMessageNode(message);node.dataset.chatId=message.id;box.append(node);while(box.children.length>40)box.firstElementChild.remove();box.scrollTop=box.scrollHeight;}
+async function startClassChat(){const status=document.getElementById('chat-status'),input=document.getElementById('chat-input'),submit=document.querySelector('.chat-compose button'),box=document.getElementById('chat-messages');if(!status||!input)return;if(classChatChannel){await syncClient.removeChannel(classChatChannel);classChatChannel=null;}box.replaceChildren();input.disabled=!syncUser;submit.disabled=!syncUser;if(!syncUser){status.textContent='Zaloguj się, aby dołączyć';return;}if(!syncClient){status.textContent='Czat niedostępny';return;}status.textContent='Łączenie…';try{const {data,error}=await syncClient.from('class_chat_messages').select('id,sender_id,sender_name,body,created_at').order('created_at',{ascending:false}).limit(30);if(error)throw error;(data||[]).reverse().forEach(appendClassChatMessage);classChatChannel=syncClient.channel('ortoliga-class-chat').on('postgres_changes',{event:'INSERT',schema:'public',table:'class_chat_messages'},event=>appendClassChatMessage(event.new)).subscribe(state=>{status.textContent=state==='SUBSCRIBED'?'● Wspólna rozmowa':'Łączenie…';});}catch(error){status.textContent='Czat wymaga włączenia';box.textContent='Administrator musi jednorazowo uruchomić aktualizację czatu w bazie Supabase.';console.warn('Class chat is not configured yet',error);}}
+sendClassChat=async event=>{event.preventDefault();const input=document.getElementById('chat-input'),body=input.value.trim();if(!body||!syncUser||!syncClient)return;const button=document.querySelector('.chat-compose button');input.disabled=true;button.disabled=true;try{const {error}=await syncClient.from('class_chat_messages').insert({sender_id:syncUser.id,sender_name:'',body});if(error)throw error;input.value='';}catch(error){document.getElementById('chat-status').textContent=error.message?.includes('Odczekaj')?'Odczekaj chwilę':'Nie udało się wysłać';}finally{input.disabled=!syncUser;button.disabled=!syncUser;if(syncUser)input.focus();}};
+toggleSidebarChat=()=>document.getElementById('sidebar-chat')?.classList.toggle('expanded');
+const previousSetSyncUserForChat=setSyncUser;setSyncUser=async user=>{await previousSetSyncUserForChat(user);await startClassChat();};
+document.addEventListener('DOMContentLoaded',()=>{void startClassChat();});

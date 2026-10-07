@@ -40,3 +40,8 @@ Uczniowie, którzy wcześniej korzystali z kont PIN, muszą utworzyć konto e-ma
 Nowa wersja dodaje do Rankingi listę kont z pseudonimem oraz zieloną kropką przy osobach aktywnych. Aby ją włączyć w istniejącym projekcie, w Supabase otwórz **SQL Editor**, uruchom plik `supabase/migrations/202610060001_student_roster.sql`, a następnie odśwież aplikację. Funkcja udostępnia wyłącznie identyfikator konta i pseudonim zalogowanym uczniom; status aktywności jest chwilowy i przekazywany kanałem Realtime, nie jest zapisywany w historii.
 
 W aplikacji użytkownik może też wybrać tryb nocny przyciskiem w górnym pasku. Ustawienie zapamiętuje się na danym urządzeniu.
+
+
+## Wspólny czat uczniów
+
+Wersja 0.13 dodaje pseudonimowy czat widoczny dla zalogowanych uczniów. W istniejącym projekcie Supabase otwórz SQL Editor i uruchom jednorazowo supabase/migrations/202610070001_class_chat.sql. Migracja tworzy prywatną tabelę, ogranicza odczyt i wysyłanie do zalogowanych kont, ustawia pseudonim z profilu, ogranicza długość i częstotliwość wpisów oraz blokuje publikowanie danych kontaktowych i odnośników. Po uruchomieniu odśwież aplikację. supabase-sync.sql zawiera również tę migrację dla nowych instalacji.

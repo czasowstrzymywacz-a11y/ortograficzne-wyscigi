@@ -48,10 +48,10 @@ const OrtoLigaCore = (() => {
   function tokens(text) {
     const words=[], gaps=['']; let end=0;
     for(const match of String(text).matchAll(/[A-Za-zĄĆĘŁŃÓŚŹŻąćęłńóśźż]+(?:-[A-Za-zĄĆĘŁŃÓŚŹŻąćęłńóśźż]+)*/g)) {
-      gaps[words.length] += String(text).slice(end,match.index).replace(/[^,.!?;:„”"()—-]/g,'');
+      gaps[words.length] += String(text).slice(end,match.index).replace(/[^,.]/g,'');
       words.push(match[0]); gaps.push(''); end=match.index+match[0].length;
     }
-    gaps[words.length]+=String(text).slice(end).replace(/[^,.!?;:„”"()—-]/g,'');
+    gaps[words.length]+=String(text).slice(end).replace(/[^,.]/g,'');
     return {words,gaps};
   }
   const upper = word => !!word && word[0]!==word[0].toLocaleLowerCase('pl');
@@ -146,7 +146,7 @@ const OrtoLigaCore = (() => {
     let storyCache=null,storyCacheKey='';
     function generate(progress, requested=[],date,seedStories=[]) {
       const cacheKey=JSON.stringify(seedStories.map(s=>s.sentences));
-      if(!storyCache||cacheKey!==storyCacheKey){storyCacheKey=cacheKey;storyCache=[...seedStories,...sceneStories()].map(enrich).filter(s=>s.sentences.length===3&&!forbidden.test(s.sentences.join(' ')));}
+      if(!storyCache||cacheKey!==storyCacheKey){storyCacheKey=cacheKey;storyCache=[...seedStories,...sceneStories()].map(enrich).filter(s=>s.sentences.length===3&&tokens(s.sentences.join(' ')).words.length<=20&&!forbidden.test(s.sentences.join(' ')));}
       const needs=diagnosis(progress,date),selected=requested.length?requested:needs.rules.slice(0,2),all=storyCache.filter(s=>selected.every(g=>s.rules.includes(g)));
       const used=new Set(progress.dictations.map(s=>lower((s.sentences||[]).join(' '))));
       const scored=all.filter(s=>!used.has(s.fingerprint)).map(s=>({s,score:needs.words.reduce((n,w)=>n+(s.words.some(x=>key(x)===w.word)?w.weight:0),0)+selected.length*20+Math.random()*12})).sort((a,b)=>b.score-a.score);
@@ -207,12 +207,9 @@ const OrtoLigaCore = (() => {
     for(const w of needs.words){const item=lookup(w.word);if(item&&!picked.some(x=>key(x)===item.key)&&picked.length<3)picked.push(item.word);}
     const defaults=['królik','drużyna','herbata'];for(const w of defaults)if(picked.length<3&&!picked.some(x=>key(x)===key(w)))picked.push(w);
     const names=['Hania','Ola','Lena','Bartek'],name=names[(progress.generatedCount||0)%names.length];
-    const intro=[`${name} przygotowała w bibliotece grę słowną, a drużyna rozłożyła karty na stole i uzgodniła, że będzie uważnie porównywać zapisy.`,`Na klasowym spotkaniu ${name} wybrała trzy karty do wspólnego treningu, ponieważ dzieci chciały utrwalić słowa, które sprawiały im trudność.`];
-    const endings=['Po wspólnej pracy dzieci zapisały własne zdania, podkreśliły trudne litery i schowały karty do kolekcji, do której wrócą na kolejnej lekcji.','Na koniec drużyna przeczytała słowa na głos, porównała zapisy ze słownikiem i uzgodniła, że powtórzy je po kilku dniach.','Kiedy trening dobiegł końca, dzieci wymieniły się przykładami, uporządkowały stół i zaplanowały następne spotkanie z nowymi kartami.'];
-    const safeName=name==='Bartek'?'Ania':name;
     const count=progress.generatedCount||0;
     const arranged=picked.slice();for(let i=0;i<Math.floor(count/12)%3;i++)arranged.push(arranged.shift());
-    return {title:`Karty odkrywców · trening ${count+1}`,sceneKey:'wordgame-'+count,sentences:[intro[count%intro.length].replaceAll(name,safeName),`Na kartach widniały słowa „${arranged[0]}”, „${arranged[1]}” oraz „${arranged[2]}”, a uczniowie sprawdzili, które litery i końcówki wymagają szczególnej uwagi.`,endings[count%endings.length]]};
+    return {title:`Karty odkrywców · trening ${count+1}`,sceneKey:'wordgame-'+count,sentences:[`${name} wybrała słowa do gry, aby ćwiczyć.`,`Na kartach były „${arranged[0]}”, „${arranged[1]}” oraz „${arranged[2]}”.`,'Drużyna sprawdziła zapisy.']};
   }
   return {create,tokens,align,analyse,upper,lower,forbidden,addDays,sceneStories};
 })();
