@@ -4,8 +4,8 @@ Aplikacja może działać jako strona internetowa bez kupowania domeny. GitHub P
 
 ## Repozytorium i strona
 
-Repozytorium projektu: <https://github.com/czasowstrzymywacz-a11y/ortograficzne-wyscigi>.
-Adres strony: <https://czasowstrzymywacz-a11y.github.io/ortograficzne-wyscigi/>.
+Repozytorium projektu: <https://github.com/czasowstrzymywacz-a11y/ortoliga>.
+Adres strony: <https://czasowstrzymywacz-a11y.github.io/ortoliga/>.
 Po skonfigurowaniu repozytorium aktualizacje wysyła się z folderu projektu:
 
 ```powershell
@@ -19,8 +19,8 @@ W GitHub wybierz **Settings → Pages → Deploy from a branch**, gałąź `main
 ## Supabase — konfiguracja e-mail
 
 1. W projekcie Supabase powiązanym ze stroną otwórz **Authentication → URL Configuration**.
-2. Ustaw **Site URL** na `https://czasowstrzymywacz-a11y.github.io/ortograficzne-wyscigi/`.
-3. Dodaj ten sam adres do **Redirect URLs** (w razie potrzeby także `https://czasowstrzymywacz-a11y.github.io/ortograficzne-wyscigi/**`).
+2. Ustaw **Site URL** na `https://czasowstrzymywacz-a11y.github.io/ortoliga/`.
+3. Dodaj ten sam adres do **Redirect URLs** (w razie potrzeby także `https://czasowstrzymywacz-a11y.github.io/ortoliga/**`).
 4. W **Authentication → Providers → Email** włącz Email. Potwierdzanie adresów może pozostać włączone: uczeń kliknie link w skrzynce, a potem zaloguje się tym samym adresem lub swoim pseudonimem i hasłem. Dodaj adres strony do dozwolonych adresów powrotu, aby działały potwierdzanie e-maila i reset hasła.
 5. Otwórz **SQL Editor**, wklej zawartość `supabase-sync.sql` i wybierz **Run**. Skrypt bezpiecznie tworzy tabele, zasady dostępu, profil rankingowy i funkcję rankingu. Można go uruchamiać ponownie po aktualizacjach.
 6. W `index.html` sprawdź `window.ISKIERKA_SYNC_CONFIG`: adres projektu i klucz publishable/anon muszą należeć do tego samego projektu Supabase, w którym uruchomiono SQL.
