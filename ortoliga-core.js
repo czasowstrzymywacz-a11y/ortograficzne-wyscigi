@@ -200,16 +200,62 @@ const OrtoLigaCore = (() => {
       ['Przy stawie zobaczyli żółwia, pod drzewem siedział królik, a wiewiórka przeskakiwała między gałęziami i zbierała orzechy.','Na brzegu ścieżki rosły wrzosy, wśród liści błyszczała pajęczyna, a przy ławce leżał mały kamień o ciekawym kształcie.','Dziewczęta zauważyły jasną chmurę odbijającą się w wodzie, zrobiły zdjęcie i porównały odbicie z ilustracją w książce.'],
       ['Po spacerze dzieci uporządkowały zdjęcia, zapisały nazwy zaobserwowanych zwierząt i przygotowały album, który pokażą przyjaciołom w klasie.','Gdy obserwacje dobiegły końca, drużyna usiadła na ławce i omówiła, które zdjęcia najlepiej pasują do wspólnej kolekcji.','Na koniec Hania przeczytała wpis w notesie, podkreśliła najważniejsze informacje i zaplanowała następny spacer po parku.']]
   ];
-  function sceneStories(){return SCENES.flatMap(([title,starts,middles,ends],family)=>starts.flatMap((a,i)=>middles.flatMap((b,j)=>ends.map((c,k)=>({title,sentences:[a,b,c],sceneKey:`scene-${family}-${i}-${j}-${k}`})))));}
+  const SHORT_STORIES = [
+    ['Turniej klas', ['Zosia zgłosiła drużynę do turnieju.','Bartek podał piłkę, a Lena strzeliła gola.','Klasa wiwatowała przy boisku.']],
+    ['Półka pełna pomysłów', ['Ola przyniosła książkę o kosmosie.','Michał znalazł mapę, a Hania opisała plan.','Wszyscy dopisali ciekawy tytuł.']],
+    ['Kronika klasowych pomysłów', ['Maja otworzyła zeszyt klasy.','Bartek narysował ogródek, a Zosia dopisała plan.','Pomysł spodobał się wszystkim.']],
+    ['Przerwa z zagadką', ['Na przerwie Lena ułożyła zagadkę.','Przyjaciel odgadł hasło, a klasa biła brawo.','Potem wszyscy wymyślili własne pytanie.']],
+    ['Wyprawa po mapie', ['Na geografii Ola odnalazła Wisłę.','Bartek zapisał notatkę, a Lena narysowała mapę.','Klasa poznała nowy region.']],
+    ['Młodzi ogrodnicy', ['Uczniowie posadzili krzew przy szkole.','Drużyna podlała grządki, a Hania opisała rośliny.','Następnego dnia pojawiły się liście.']],
+    ['Rowerowa mapa', ['Ania narysowała trasę wycieczki.','Bartek wybrał ścieżkę, a Ola sprawdziła mapę.','Rano ruszyli razem nad rzekę.']],
+    ['Próba chóru', ['Chór ćwiczył nową piosenkę.','Michał zaśpiewał zwrotkę, a Zosia wystukała rytm.','Cała grupa zabrzmiała równo.']],
+    ['Wspólny przepis', ['Babcia podała przepis na naleśniki.','Lena odmierzyła mąkę, a Kuba wymieszał ciasto.','Wszyscy podali owoce na stół.']],
+    ['Geograficzny quiz', ['Klasa rozwiązała quiz o Polsce.','Ola wskazała Wisłę, a Bartek odnalazł Toruń.','Drużyna zdobyła komplet punktów.']],
+    ['Nowy album przyrody', ['Hania przyniosła zdjęcia z parku.','Na pierwszym widać dąb, a na drugim wiewiórkę.','Uczniowie podpisali każdą fotografię.']],
+    ['Klasowa gazetka', ['Redakcja przygotowała nową gazetkę.','Maja napisała wywiad, a Olek narysował okładkę.','Czytelnicy chętnie ją oglądali.']],
+    ['Rozgrzewka przed meczem', ['Przed meczem drużyna ćwiczyła podania.','Bartek podał piłkę, a Lena trafiła do bramki.','Po treningu wszyscy rozciągnęli mięśnie.']],
+    ['Kącik wynalazków', ['Klasa zbudowała papierowy most.','Hania dodała podpory, a Kuba sprawdził ciężar.','Model utrzymał kilka książek.']],
+    ['Podróż do Torunia', ['Piąta klasa odwiedziła Toruń.','Przewodniczka opowiedziała historię, a uczniowie zapisali ciekawostki.','Na koniec kupili pamiątkowe pierniki.']],
+    ['Mistrzowie planszówki', ['W sobotę rodzina rozłożyła planszę.','Tata przesunął pionek, a córka odnalazła skrót.','Wszyscy rozegrali drugą partię.']],
+    ['Spotkanie z muzyką', ['Ola przyniosła mały bębenek.','Kolega wybrał melodię, a grupa wystukała rytm.','Występ zakończyły gromkie brawa.']],
+    ['Pocztówka znad morza', ['Lena wysłała pocztówkę znad Bałtyku.','Opisała plażę, szum fal i spacer z rodziną.','Dziadkowie odpisali jeszcze tego dnia.']],
+    ['Zeszyt obserwacji', ['Dzieci obserwowały pogodę przez tydzień.','Zapisały temperaturę, a potem narysowały wykres.','Wynik zaskoczył całą klasę.']],
+    ['Przyjacielska pomoc', ['Olek zauważył ciężką torbę kolegi.','Podniósł ją ostrożnie, a przyjaciel podziękował.','Razem zdążyli na autobus.']],
+    ['Słoneczny piknik', ['Klasa rozłożyła koc nad rzeką.','Ola podała gruszki, a Bartek nalał herbaty.','Po posiłku zebrali wszystkie papierki.']],
+    ['Czytelniczy wybór', ['Maja wybrała książkę o przyrodzie.','Opis żółwia ją zaciekawił, a zdjęcie rozbawiło.','Wypożyczyła też atlas ptaków.']],
+    ['Wystawa z kolekcji', ['Bartek przyniósł kolekcję kamieni.','Największy był gładki, a najmniejszy błyszczał w słońcu.','Klasa przygotowała podpisy i planszę.']],
+    ['Plan na sobotę', ['Przyjaciele spotkali się rano.','Wybrali ścieżkę, a potem ruszyli do parku.','Wrócili z notesem pełnym obserwacji.']],
+    ['Dzień z eksperymentem', ['Uczniowie przygotowali prosty eksperyment.','Woda zmieniła kolor, a grupa zapisała wyniki.','Nauczyciel pochwalił dokładne notatki.']],
+    ['Sportowa rozgrzewka', ['Drużyna ćwiczyła rzuty do kosza.','Zosia trafiła trzy razy, a Kuba pobił rekord.','Klasa pogratulowała obojgu.']],
+    ['Przygotowania do konkursu', ['Ola powtórzyła ważne wiadomości.','Rozwiązała quiz, a Bartek sprawdził odpowiedzi.','Oboje byli z siebie dumni.']],
+    ['Ptasia stołówka', ['Uczniowie zbudowali karmnik.','Hania wsypała ziarenka, a wkrótce przyleciały sikorki.','Dzieci obserwowały ptaki z okna.']],
+    ['Kolekcja wspomnień', ['Klasa przygotowała album z wycieczki.','Na zdjęciach widać rzekę, drużynę i stary dąb.','Każdy dopisał jedno wspomnienie.']],
+    ['Wiadomości z biblioteki', ['Maja wybrała książkę o geografii.','Opis kolekcji zdjęć zaciekawił Olę, a Bartek znalazł atlas.','Cała trójka poleciła go klasie.']]
+  ];
+  function sceneStories(){
+    const older=SCENES.flatMap(([title,starts,middles,ends],family)=>starts.flatMap((a,i)=>middles.flatMap((b,j)=>ends.map((c,k)=>({title,sentences:[a,b,c],sceneKey:`scene-${family}-${i}-${j}-${k}`})))));
+    return [...SHORT_STORIES.map(([title,sentences],i)=>({title,sentences,sceneKey:`short-${i}`})),...older];
+  }
   function wordGame(progress,selected,needs,date,lookup,index,key){
     const picked=[];
     for(const group of selected.filter(g=>!['Wielka litera','Przecinki i interpunkcja'].includes(g))){const weak=needs.words.map(x=>lookup(x.word)).find(x=>x?.group===group);const available=[...index.values()].flat().map(x=>lookup(x.word)).filter(x=>x&&x.group===group&&!forbidden.test(x.word));const choice=weak||available.find(x=>!picked.some(y=>key(y)===x.key));if(choice)picked.push(choice.word);}
     for(const w of needs.words){const item=lookup(w.word);if(item&&!picked.some(x=>key(x)===item.key)&&picked.length<3)picked.push(item.word);}
     const defaults=['królik','drużyna','herbata'];for(const w of defaults)if(picked.length<3&&!picked.some(x=>key(x)===key(w)))picked.push(w);
-    const names=['Hania','Ola','Lena','Bartek'],name=names[(progress.generatedCount||0)%names.length];
     const count=progress.generatedCount||0;
     const arranged=picked.slice();for(let i=0;i<Math.floor(count/12)%3;i++)arranged.push(arranged.shift());
-    return {title:`Karty odkrywców · trening ${count+1}`,sceneKey:'wordgame-'+count,sentences:[`${name} wybrała słowa do gry, aby ćwiczyć.`,`Na kartach były „${arranged[0]}”, „${arranged[1]}” oraz „${arranged[2]}”.`,'Drużyna sprawdziła zapisy.']};
+    const a=arranged[0]||'królik',b=arranged[1]||'drużyna',c=arranged[2]||'herbata';
+    const frames=[
+      ['Quiz drużynowy',`W quizie pojawiło się hasło „${a}”.`,`Na tablicy zapisano „${b}”, a obok „${c}”.`,'Drużyna zdobyła punkt.'],
+      ['Projekt na wystawę',`Na planszy umieszczono wyraz „${a}”.`,`Obok zapisano „${b}”, a niżej „${c}”.`,'Klasa przygotowała ciekawą wystawę.'],
+      ['Półka czytelników',`W książce znaleziono słowo „${a}”.`,`W notatniku zapisano „${b}”, a potem „${c}”.`,'Czytelnicy polecili lekturę klasie.'],
+      ['Gra na przerwie',`Podczas gry wylosowano hasło „${a}”.`,`Na kartce pojawiło się „${b}”, a potem „${c}”.`,'Wszyscy rozegrali kolejną rundę.'],
+      ['Plan wycieczki',`Na mapie zaznaczono punkt „${a}”.`,`W planie zapisano „${b}”, a obok „${c}”.`,'Klasa wybrała ciekawą trasę.'],
+      ['Klub młodych odkrywców',`W klubowym notesie znalazło się „${a}”.`,`Na kolejnej stronie zapisano „${b}” i „${c}”.`,'Drużyna przygotowała nowy projekt.'],
+      ['Klasowy finał',`Podczas finału przeczytano słowo „${a}”.`,`Na liście wyników znalazło się „${b}”, a potem „${c}”.`,'Publiczność nagrodziła klasę brawami.'],
+      ['Szybka zagadka',`W zagadce ukryto słowo „${a}”.`,`Rozwiązanie zawierało „${b}”, a dodatkowa wskazówka „${c}”.`,'Cała grupa dopisała nowe hasło.']
+    ];
+    const [title,...sentences]=frames[count%frames.length];
+    return {title,sceneKey:`wordgame-${count}`,sentences};
   }
   return {create,tokens,align,analyse,upper,lower,forbidden,addDays,sceneStories};
 })();
